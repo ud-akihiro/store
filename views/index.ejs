@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品一覧</title>
+
+    <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+    <h1>===== 商品一覧 =====</h1>
+
+    <% if (errorMessage) { %>
+      <div style="color: red;"><%= errorMessage %></div>
+    <% } else { %>
+      <div id="products">
+        <% products.forEach((product) => { %>
+          <a href="/<%= product.id %>" class="product-card">
+            <img src="<%= product.image_url %>" alt="<%= product.name %>">
+            <div class="product-info">
+                <h2><%= product.name %></h2>
+                <p><%= product.price %>円(税込)</p>
+            </div>
+          </a>
+        <% }) %>
+      </div>
+    <% } %>
+</body>
+
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品詳細</title>
+
+    <!-- /details/detail.cssをstylesheetとして追加 -->
+    <link rel="stylesheet" href="/detail.css">
+</head>
+
+<body>
+    <div class="container">
+        <a href="/">< 商品一覧に戻る</a>
+
+        <!-- id属性がproduct-detailのdiv要素を追加 -->
+        <% if (errorMessage) { %>
+            <div style="color: red;"><%= errorMessage %></div>
+        <% } else { %>
+            <div id="product-detail">
+                <img src="<%= product.image_url %>" alt="<%= product.name %>" class="product-image">
+                <div class="product-info">
+                    <h1 class="product-name"><%= product.name %></h1>
+                    <p class="product-price"><%= product.price %>円(税込)</p>
+                    <p class="product-description"><%= product.description %></p>
+                </div>
+            </div>
+
+            <form action="/order" method="post">
+                <input type="hidden" name="product_id" value="<%= product.id %>">
+                <button type="submit" class="purchase-button">購入する</button>
+            </form>
+        <% } %>
+        
+    </div>
+</body>
+
+</html>

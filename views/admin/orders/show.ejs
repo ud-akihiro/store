@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注文詳細</title>
+    <link rel="stylesheet" href="/admin/orders/show.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <ul>
+                <li><a href="/admin/products">商品管理</a></li>
+                <li><a href="/admin/orders">注文管理</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <h1>注文詳細</h1>
+        <div class="order-info">
+            <h2>注文情報</h2>
+            <p><strong>注文ID:</strong> <%= order.id %></p>
+            <p><strong>合計金額:</strong> <%= order.quantity * order.price %>円（税込）</p>
+        </div>
+        <div class="product-info">
+            <h2>商品情報</h2>
+            <div class="product-item">
+                <img src="<%= order.image_url %>" alt="商品画像" class="product-image">
+                <div class="product-details">
+                    <p><strong>商品名:</strong> <%= order.name %></p>
+                    <p><strong>金額:</strong> <%= order.price %>円（税込）</p>
+                    <p><strong>注文数:</strong> <%= order.quantity %></p>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
