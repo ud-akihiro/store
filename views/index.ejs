@@ -17,7 +17,7 @@
     <% } else { %>
       <div id="products">
         <% products.forEach((product) => { %>
-          <a href="/<%= product.id %>" class="product-card">
+          <a href="<%= product.id %>" class="product-card">
             <img src="<%= product.image_url %>" alt="<%= product.name %>">
             <div class="product-info">
                 <h2><%= product.name %></h2>
