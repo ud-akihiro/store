@@ -1,58 +1,79 @@
-import express from "express";
-import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
-import { pool } from "./db/db.js";
+// app.js (CommonJS / Node.js 22 対応・学習用)
+const express = require("express");
+const dotenv = require("dotenv");
+const path = require("path");
+const mysql = require("mysql2"); // callback ベース
 
 dotenv.config();
 
 const app = express();
 
+// body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// __dirnameの代替を設定
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ビューエンジンの設定
+// views / static
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
-
 app.use(express.static(path.join(__dirname, "public")));
 
-// ECサイトのルーティング
+// MySQL単一接続
+const connection = mysql.createConnection({
+  host: 'mysql',
+  user: 'root',
+  password: 'mysqlpass',
+  database: 'store'
+});
+
+// 接続確認
+connection.connect((error) => {
+  if (error) console.error("DB接続エラー:", error);
+  else console.log("DB接続成功");
+});
+
+/*
+ * トップ：商品一覧
+ */
 app.get("/", (req, res) => {
-    let errorMessage = "";
+  let errorMessage = "";
 
-    pool.query("SELECT * FROM products ORDER BY id DESC", (error, results) => {
-        if (error) errorMessage = error.message;
-        res.render("index.ejs", { products: results || [], errorMessage });
-    });
-
+  connection.query("SELECT * FROM products ORDER BY id DESC", (error, results) => {
+    if (error) errorMessage = error.message;
+    res.render("index.ejs", { products: results || [], errorMessage });
+  });
 });
 
+/*
+ * サンクス
+ */
 app.get("/thanks", (req, res) => {
-    res.render("thanks.ejs");
+  res.render("thanks.ejs");
 });
 
+/*
+ * 商品詳細
+ */
 app.get("/:id", (req, res) => {
-    let errorMessage = "";
-    const id = req.params.id;
+  let errorMessage = "";
+  const id = req.params.id;
 
-    pool.query("SELECT * FROM products WHERE id = ?", [id], (error, results)=>{
-        if(error) errorMessage = error.message;
-        else if (!results || results.length === 0) errorMessage = "商品が見つかりませんでした";
+  connection.query("SELECT * FROM products WHERE id = ?", [id], (error, results) => {
+    if (error) errorMessage = error.message;
+    else if (!results || results.length === 0) errorMessage = "商品が見つかりませんでした";
 
-        res.render("detail.ejs", { product: (results && results[0]) || {}, errorMessage });
-    });
+    res.render("detail.ejs", { product: (results && results[0]) || {}, errorMessage });
+  });
 });
 
+/*
+ * 注文（トランザクション：callbackベース）
+ */
 app.post("/order", (req, res) => {
   const product_id = req.body.product_id;
   const quantity = 1;
 
-  pool.getConnection((error, connection) => {
+  // 1) トランザクション開始
+  connection.beginTransaction((error) => {
     if (error) {
       return res.render("error.ejs", {
         errorMessage: error.message,
@@ -61,176 +82,112 @@ app.post("/order", (req, res) => {
       });
     }
 
-    const releaseWith = (fn) => (arg) => { connection.release(); fn(arg); };
+    // 2) 在庫確認（FOR UPDATEでロック）
+    connection.query(
+      "SELECT id, stock FROM products WHERE id = ? FOR UPDATE",
+      [product_id],
+      (error, results) => {
+        if (error) {
+          return connection.rollback(() => {
+            res.render("error.ejs", {
+              errorMessage: error.message,
+              link_url: `/${product_id}`,
+              page_name: "商品ページ",
+            });
+          });
+        }
 
-    connection.beginTransaction((error) => {
-      if (error) return releaseWith(resError)(error);
+        if (!results || results.length === 0) {
+          return connection.rollback(() => {
+            res.render("error.ejs", {
+              errorMessage: "商品が見つかりませんでした",
+              link_url: `/${product_id}`,
+              page_name: "商品ページ",
+            });
+          });
+        }
 
-      // 1) ロックして在庫確認
-      connection.query(
-        "SELECT id, stock FROM products WHERE id = ? FOR UPDATE",
-        [product_id],
-        (error, results) => {
-          if (error) return rollback(error);
-          if (!results || results.length === 0) return rollback(new Error("商品が見つかりませんでした"));
-          if (results[0].stock < quantity) return rollback(new Error("在庫が不足しています"));
+        if (results[0].stock < quantity) {
+          return connection.rollback(() => {
+            res.render("error.ejs", {
+              errorMessage: "在庫が不足しています",
+              link_url: `/${product_id}`,
+              page_name: "商品ページ",
+            });
+          });
+        }
 
-          // 2) 在庫減算
-          connection.query(
-            "UPDATE products SET stock = stock - ? WHERE id = ?",
-            [quantity, product_id],
-            (error, result) => {
-              if (error) return rollback(error);
-              if (result.affectedRows !== 1) return rollback(new Error("在庫更新に失敗しました"));
+        // 3) 在庫減算
+        connection.query(
+          "UPDATE products SET stock = stock - ? WHERE id = ?",
+          [quantity, product_id],
+          (error, updateResult) => {
+            if (error || !updateResult || updateResult.affectedRows !== 1) {
+              return connection.rollback(() => {
+                res.render("error.ejs", {
+                  errorMessage: error ? error.message : "在庫更新に失敗しました",
+                  link_url: `/${product_id}`,
+                  page_name: "商品ページ",
+                });
+              });
+            }
 
-              // 3) 注文作成
-              connection.query(
-                "INSERT INTO orders (product_id, quantity, order_date) VALUES (?, ?, NOW())",
-                [product_id, quantity],
-                (error) => {
-                  if (error) return rollback(error);
-
-                  // 4) コミット
-                  connection.commit((error) => {
-                    if (error) return rollback(error);
-                    connection.release();
-                    res.redirect("/thanks");
+            // 4) 注文作成
+            connection.query(
+              "INSERT INTO orders (product_id, quantity, order_date) VALUES (?, ?, NOW())",
+              [product_id, quantity],
+              (error) => {
+                if (error) {
+                  return connection.rollback(() => {
+                    res.render("error.ejs", {
+                      errorMessage: error.message,
+                      link_url: `/${product_id}`,
+                      page_name: "商品ページ",
+                    });
                   });
                 }
-              );
-            }
-          );
-        }
-      );
-    });
 
-    function rollback(error) {
-      connection.rollback(() => {
-        connection.release();
-        res.render("error.ejs", {
-          errorMessage: error.message,
-          link_url: `/${product_id}`,
-          page_name: "商品ページ",
-        });
-      });
-    }
+                // 5) コミット
+                connection.commit((error) => {
+                  if (error) {
+                    return connection.rollback(() => {
+                      res.render("error.ejs", {
+                        errorMessage: error.message,
+                        link_url: `/${product_id}`,
+                        page_name: "商品ページ",
+                      });
+                    });
+                  }
 
-    function resError(error) {
-      res.render("error.ejs", {
-        errorMessage: error.message,
-        link_url: `/${product_id}`,
-        page_name: "商品ページ",
-      });
-    }
+                  // 成功したらサンクスへ
+                  res.redirect("/thanks");
+                });
+              }
+            );
+          }
+        );
+      }
+    );
   });
 });
 
-// 商品管理画面のルーティング
+/*
+ * 管理画面（学習用：空実装）
+ */
 app.get("/admin/products", (req, res) => {
-
-
-
+  res.render("admin/products/index.ejs", { products: [], errorMessage: "" });
 });
 
 app.get("/admin/products/new", (req, res) => {
-    
-
-
+  res.render("admin/products/new.ejs", { errorMessage: "" });
 });
 
-app.post("/admin/products/create", (req, res) => {
-  const { name, price, image_url, stock, description } = req.body;
-  const params = [
-    name,
-    price === "" ? null : price,
-    image_url === "" ? null : image_url,
-    stock === "" ? null : stock,
-    description === "" ? null : description,
-  ];
-
-  pool.query(
-    `INSERT INTO products (name, price, image_url, stock, description, created_at)
-     VALUES (?, ?, ?, ?, ?, NOW())`,
-    params,
-    (error) => {
-      if (error) {
-        return res.render("error.ejs", {
-          errorMessage: error.message,
-          link_url: "/admin/products/new",
-          page_name: "商品追加ページ",
-        });
-      }
-      res.redirect("/admin/products");
-    }
-  );
+/*
+ * 起動
+ */
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log("App listening on http://localhost:" + PORT);
 });
 
-app.get("/admin/products/edit/:id", (req, res) => {
-    let errorMessage;
-    let products;
-
-    try {
-
-    } catch (error) {
-
-    }
-
-    
-});
-
-app.post("/admin/products/update/:id", (req, res) => {
-  const id = req.params.id;
-  const { name, price, image_url, stock, description } = req.body;
-
-  const params = [
-    name,
-    price === "" ? null : price,
-    image_url === "" ? null : image_url,
-    stock === "" ? null : stock,
-    description === "" ? null : description,
-    id,
-  ];
-
-  pool.query(
-    `UPDATE products
-       SET name = ?, price = ?, image_url = ?, stock = ?, description = ?
-     WHERE id = ?`,
-    params,
-    (error, result) => {
-      if (error) {
-        return res.render("error.ejs", {
-          errorMessage: error.message,
-          link_url: `/admin/products/edit/${id}`,
-          page_name: "商品更新ページ",
-        });
-      }
-      if (!result || result.affectedRows !== 1) {
-        return res.render("error.ejs", {
-          errorMessage: "更新対象が見つかりません",
-          link_url: `/admin/products/edit/${id}`,
-          page_name: "商品更新ページ",
-        });
-      }
-      res.redirect("/admin/products");
-    }
-  );
-});
-
-
-// 注文管理画面のルーティング
-app.get("/admin/orders", (req, res) => {
-    let errorMessage;
-    let orders;
-
-
-});
-
-app.get("/admin/orders/:id", (req, res) => {
-    let errorMessage;
-    let order;
-
-});
-
-app.listen(3000);
-
-export default app;
+module.exports = app;
