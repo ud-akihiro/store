@@ -83,7 +83,7 @@ app.post("/order", (req, res) => {
     [quantity, product_id, quantity], 
     (error, result) => {
       if(error){
-        // DBでのエラー
+        // DBでの接続などのエラー
         console.log("UPDATE error:", error);
         return res.render("error.ejs", {
           errorMessage: error.message,
@@ -92,7 +92,8 @@ app.post("/order", (req, res) => {
         });
       }
       // 以下、DBアクセスでエラーが起きなければ
-      // 結果がない(在庫なし)、もしくは、affectedRowsが1でない場合
+      // 該当の結果がない(在庫なし)、もしくは、affectedRowsが1でない場合
+      //　affectedRows は「条件に一致して実際に処理された行数（例：書き込み試行が行われた行）」
       if(!result || result.affectedRows !==1){
         return res.render("error.ejs",{
           errorMessage: "在庫が不足しているか、商品が見つかりません",
