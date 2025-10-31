@@ -1,10 +1,7 @@
 // app.js (CommonJS / Node.js 22 対応・学習用)
 const express = require("express");
-const dotenv = require("dotenv");
 const path = require("path");
 const mysql = require("mysql2"); // callback ベース
-
-dotenv.config();
 
 const app = express();
 
@@ -35,12 +32,16 @@ connection.connect((error) => {
  * トップ：商品一覧
  */
 app.get("/", (req, res) => {
+
   let errorMessage = "";
 
-  connection.query("SELECT * FROM products ORDER BY id DESC", (error, results) => {
-    if (error) errorMessage = error.message;
-    res.render("index.ejs", { products: results || [], errorMessage });
-  });
+  connection.query(
+    "SELECT * FROM products ORDER BY id DESC", 
+    (error, results) => {
+      if (error) errorMessage = error.message;
+      res.render("index.ejs", { products: results || [], errorMessage });
+    }
+  );
 });
 
 /*
@@ -57,12 +58,16 @@ app.get("/:id", (req, res) => {
   let errorMessage = "";
   const id = req.params.id;
 
-  connection.query("SELECT * FROM products WHERE id = ?", [id], (error, results) => {
-    if (error) errorMessage = error.message;
-    else if (!results || results.length === 0) errorMessage = "商品が見つかりませんでした";
-
-    res.render("detail.ejs", { product: (results && results[0]) || {}, errorMessage });
-  });
+  connection.query("SELECT * FROM products WHERE id = ?", 
+    [id], 
+    (error, results) => {
+      if (error) errorMessage = error.message;
+      else if (!results || results.length === 0) errorMessage = "商品が見つかりませんでした";
+      res.render("detail.ejs", 
+        { product: (results && results[0]) || {}, errorMessage }
+      );
+    }
+  );
 });
 
 /*
@@ -77,7 +82,7 @@ app.post("/order", (req, res) => {
     if (error) {
       return res.render("error.ejs", {
         errorMessage: error.message,
-        link_url: `/${product_id}`,
+        link_url: `${product_id}`,
         page_name: "商品ページ",
       });
     }
