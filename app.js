@@ -77,103 +77,83 @@ app.post("/order", (req, res) => {
   const product_id = req.body.product_id;
   const quantity = 1;
 
+  connection.query(
+    // 商品の在庫数を減らす
+    "UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?", 
+    [quantity, product_id, quantity], 
+    (error, result) => {
+      if(error){
+        // DBでのエラー
+        console.log("UPDATE error:", error);
+        return res.render("error.ejs", {
+          errorMessage: error.message,
+          link_url: `/${product_id}`,
+          page_name: "商品ページ",
+        });
+      }
+      // 以下、DBアクセスでエラーが起きなければ
+      // 結果がない(在庫なし)、もしくは、affectedRowsが1でない場合
+      if(!result || result.affectedRows !==1){
+        return res.render("error.ejs",{
+          errorMessage: "在庫が不足しているか、商品が見つかりません",
+          link_url: `/${product_id}`,
+          page_name: "商品ページ",
+        });
+      }
+
+      // 注文データ作成
+      connection.query(
+        "INSERT INTO orders (product_id, quantity, order_date) VALUES (?, ?, NOW())", 
+        [product_id, quantity], 
+        (error) => {
+          if (error) { 
+            console.error("INSERT order error:", error);
+            return res.render("error.ejs", { 
+              errorMessage: error.message, 
+              link_url: `/${product_id}`, 
+              page_name: "商品ページ", 
+            });
+          }
+          // 成功したらサンクスへ
+          console.log('購入成功！！！');
+          res.redirect("/thanks");
+        }
+      );
+    }
+  )
+
+  /** トランザクション処理
   // 1) トランザクション開始
   connection.beginTransaction((error) => {
-    if (error) {
-      return res.render("error.ejs", {
-        errorMessage: error.message,
-        link_url: `${product_id}`,
-        page_name: "商品ページ",
-      });
-    }
-
+    if (error) { return res.render("error.ejs", { errorMessage: error.message, link_url: `${product_id}`, page_name: "商品ページ", }); }
     // 2) 在庫確認（FOR UPDATEでロック）
-    connection.query(
-      "SELECT id, stock FROM products WHERE id = ? FOR UPDATE",
-      [product_id],
-      (error, results) => {
-        if (error) {
-          return connection.rollback(() => {
-            res.render("error.ejs", {
-              errorMessage: error.message,
-              link_url: `/${product_id}`,
-              page_name: "商品ページ",
-            });
-          });
-        }
-
-        if (!results || results.length === 0) {
-          return connection.rollback(() => {
-            res.render("error.ejs", {
-              errorMessage: "商品が見つかりませんでした",
-              link_url: `/${product_id}`,
-              page_name: "商品ページ",
-            });
-          });
-        }
-
-        if (results[0].stock < quantity) {
-          return connection.rollback(() => {
-            res.render("error.ejs", {
-              errorMessage: "在庫が不足しています",
-              link_url: `/${product_id}`,
-              page_name: "商品ページ",
-            });
-          });
-        }
-
-        // 3) 在庫減算
-        connection.query(
-          "UPDATE products SET stock = stock - ? WHERE id = ?",
-          [quantity, product_id],
-          (error, updateResult) => {
-            if (error || !updateResult || updateResult.affectedRows !== 1) {
-              return connection.rollback(() => {
-                res.render("error.ejs", {
-                  errorMessage: error ? error.message : "在庫更新に失敗しました",
-                  link_url: `/${product_id}`,
-                  page_name: "商品ページ",
-                });
+    connection.query( "SELECT id, stock FROM products WHERE id = ? FOR UPDATE",[product_id], (error, results) => { 
+      if (error) { return connection.rollback(() => { res.render("error.ejs", { errorMessage: error.message, link_url: `/${product_id}`, page_name: "商品ページ", });}); }
+      if (!results || results.length === 0) { return connection.rollback(() => { res.render("error.ejs", { errorMessage: "商品が見つかりませんでした", link_url: `/${product_id}`, page_name: "商品ページ", }); }); }
+      if (results[0].stock < quantity) { return connection.rollback(() => { res.render("error.ejs", { errorMessage: "在庫が不足しています", link_url: `/${product_id}`, page_name: "商品ページ", }); }); }
+      // 3) 在庫減算
+      connection.query( 
+        "UPDATE products SET stock = stock - ? WHERE id = ?", [quantity, product_id], (error, updateResult) => { 
+          if (error || !updateResult || updateResult.affectedRows !== 1) { return connection.rollback(() => { res.render("error.ejs", { errorMessage: error ? error.message : "在庫更新に失敗しました", link_url: `/${product_id}`, page_name: "商品ページ", }); }); }
+          // 4) 注文作成
+          connection.query(
+            "INSERT INTO orders (product_id, quantity, order_date) VALUES (?, ?, NOW())", [product_id, quantity], (error) => {
+              if (error) {return connection.rollback(() => { res.render("error.ejs", { errorMessage: error.message, link_url: `/${product_id}`, page_name: "商品ページ", }); });}
+              // 5) コミット
+              connection.commit((error) => {
+                if (error) { return connection.rollback(() => { res.render("error.ejs", { errorMessage: error.message, link_url: `/${product_id}`, page_name: "商品ページ", }); }); }
+                // 成功したらサンクスへ
+                console.log('購入成功！');
+                res.redirect("/thanks");
               });
             }
-
-            // 4) 注文作成
-            connection.query(
-              "INSERT INTO orders (product_id, quantity, order_date) VALUES (?, ?, NOW())",
-              [product_id, quantity],
-              (error) => {
-                if (error) {
-                  return connection.rollback(() => {
-                    res.render("error.ejs", {
-                      errorMessage: error.message,
-                      link_url: `/${product_id}`,
-                      page_name: "商品ページ",
-                    });
-                  });
-                }
-
-                // 5) コミット
-                connection.commit((error) => {
-                  if (error) {
-                    return connection.rollback(() => {
-                      res.render("error.ejs", {
-                        errorMessage: error.message,
-                        link_url: `/${product_id}`,
-                        page_name: "商品ページ",
-                      });
-                    });
-                  }
-
-                  // 成功したらサンクスへ
-                  res.redirect("/thanks");
-                });
-              }
-            );
-          }
-        );
-      }
-    );
+          );
+        }
+      );
+    });
   });
+  **/
+
 });
 
 /*
