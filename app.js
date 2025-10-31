@@ -25,7 +25,7 @@ const connection = mysql.createConnection({
 // 接続確認
 connection.connect((error) => {
   if (error) console.error("DB接続エラー:", error);
-  else console.log("DB接続成功");
+  else console.log("DB(MySQL) 接続確認 成功");
 });
 
 /*
@@ -192,7 +192,7 @@ app.get("/admin/products/new", (req, res) => {
  */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("App listening on http://localhost:" + PORT);
+  console.log("ポート" + PORT + "番にてNode.jsサーバ稼働開始！");
 });
 
 module.exports = app;
