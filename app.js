@@ -116,7 +116,7 @@ app.post("/order", (req, res) => {
             });
           }
           // 成功したらサンクスへ
-          console.log('購入成功！！！');
+          console.log('購入成功');
           res.redirect("/thanks");
         }
       );
