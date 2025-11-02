@@ -1,6 +1,5 @@
 // app.js (CommonJS / Node.js 22 対応・学習用)
 const express = require("express");
-const path = require("path");
 const mysql = require("mysql2"); // callback ベース
 
 const app = express();
@@ -11,10 +10,6 @@ app.use(express.urlencoded({ extended: false }));
 
 // cssやjsファイルは、publicの中身を返す 
 app.use(express.static("public"));
-
-// .ejsファイルは、デフォルトでは viewsフォルダ
-//app.set("views", path.join(__dirname, "views"));
-//app.set("view engine", "ejs");
 
 // MySQL接続 本来は別ファイルにする(コードに書かない)
 const connection = mysql.createConnection({
@@ -47,7 +42,7 @@ app.get("/", (req, res) => {
 });
 
 /*
- * サンクス
+ * 発注完了 /:id より先に置かないと、:idに吸い込まれる
  */
 app.get("/thanks", (req, res) => {
   res.render("thanks.ejs");
