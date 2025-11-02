@@ -12,21 +12,21 @@ app.use(express.urlencoded({ extended: false }));
 // cssやjsファイルは、publicの中身を返す 
 app.use(express.static("public"));
 
-// views
-app.set("views", path.join(__dirname, "views"));
-app.set("view engine", "ejs");
+// .ejsファイルは、デフォルトでは viewsフォルダ
+//app.set("views", path.join(__dirname, "views"));
+//app.set("view engine", "ejs");
 
-// MySQL接続
+// MySQL接続 本来は別ファイルにする(コードに書かない)
 const connection = mysql.createConnection({
   host: 'mysql',
-  user: 'root',
-  password: 'mysqlpass',
+  user: 'root', // ユーザがrootだとなんでもできるのでよくない
+  password: 'mysqlpass', // パスワード記載は特にやばい
   database: 'store'
 });
 
 // 接続確認
 connection.connect((error) => {
-  if (error) console.error("DB接続エラー:", error);
+  if (error) console.error("DB(MySQL)接続エラー:", error);
   else console.log("DB(MySQL) 接続確認 成功");
 });
 
