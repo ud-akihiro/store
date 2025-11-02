@@ -45,13 +45,6 @@ app.get("/", (req, res) => {
 });
 
 /*
- * サンクス
- */
-app.get("/thanks", (req, res) => {
-  res.render("thanks.ejs");
-});
-
-/*
  * 商品詳細
  */
 app.get("/:id", (req, res) => {
@@ -157,6 +150,16 @@ app.post("/order", (req, res) => {
 
 });
 
+
+/*
+ * サンクス
+ */
+app.get("/thanks", (req, res) => {
+  res.render("thanks.ejs");
+});
+
+
+
 /*
  * 管理画面（学習用：空実装）
  */
@@ -173,7 +176,7 @@ app.get("/admin/products/new", (req, res) => {
  */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("ポート" + PORT + "番にてNode.jsサーバ稼働開始！");
+  console.log("TCPポート" + PORT + "番にてNode.jsサーバ稼働開始");
 });
 
 module.exports = app;
