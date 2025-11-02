@@ -2,37 +2,21 @@
 const express = require("express");
 const path = require("path");
 const mysql = require("mysql2"); // callback ベース
-require('dotenv').config();
 
 const app = express();
-
-// ★ BASE_PATH を先に決定（.env の BASE_PATH=/proxy/3000/ を拾う）
-const BASE_PATH = process.env.BASE_PATH || "/";  // 例: "/proxy/3000/" or "/"
 
 // body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// cssやjsファイルは、publicの中身を返す 
+app.use(express.static("public"));
+
 // views
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
 
-// 既存のルート直下の静的配信
-app.use(express.static(path.join(__dirname, "public")));
-// VSCode の /proxy/3000/ でも静的配信できるよう BASE_PATH 配下
-if (BASE_PATH !== "/") {
-  app.use(BASE_PATH, express.static(path.join(__dirname, "public")));
-}
-
-// EJS から参照できる baseHref を設定（末尾スラッシュ付与）
-app.use((req, res, next) => {
-  const b = BASE_PATH.endsWith("/") ? BASE_PATH : BASE_PATH + "/";
-  res.locals.baseHref = b;
-  next();
-});
-
-
-// MySQL単一接続
+// MySQL接続
 const connection = mysql.createConnection({
   host: 'mysql',
   user: 'root',
