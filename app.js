@@ -2,17 +2,35 @@
 const express = require("express");
 const path = require("path");
 const mysql = require("mysql2"); // callback ベース
+require('dotenv').config();
 
 const app = express();
+
+// ★ BASE_PATH を先に決定（.env の BASE_PATH=/proxy/3000/ を拾う）
+const BASE_PATH = process.env.BASE_PATH || "/";  // 例: "/proxy/3000/" or "/"
 
 // body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// views / static
+// views
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "ejs");
+
+// 既存のルート直下の静的配信
 app.use(express.static(path.join(__dirname, "public")));
+// VSCode の /proxy/3000/ でも静的配信できるよう BASE_PATH 配下
+if (BASE_PATH !== "/") {
+  app.use(BASE_PATH, express.static(path.join(__dirname, "public")));
+}
+
+// EJS から参照できる baseHref を設定（末尾スラッシュ付与）
+app.use((req, res, next) => {
+  const b = BASE_PATH.endsWith("/") ? BASE_PATH : BASE_PATH + "/";
+  res.locals.baseHref = b;
+  next();
+});
+
 
 // MySQL単一接続
 const connection = mysql.createConnection({
@@ -42,6 +60,13 @@ app.get("/", (req, res) => {
       res.render("index.ejs", { products: results || [], errorMessage });
     }
   );
+});
+
+/*
+ * サンクス
+ */
+app.get("/thanks", (req, res) => {
+  res.render("thanks.ejs");
 });
 
 /*
@@ -110,7 +135,7 @@ app.post("/order", (req, res) => {
           }
           // 成功したらサンクスへ
           console.log('購入成功');
-          res.redirect("/thanks");
+          res.redirect("thanks");
         }
       );
     }
@@ -150,13 +175,6 @@ app.post("/order", (req, res) => {
 
 });
 
-
-/*
- * サンクス
- */
-app.get("/thanks", (req, res) => {
-  res.render("thanks.ejs");
-});
 
 
 

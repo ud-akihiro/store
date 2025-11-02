@@ -4,7 +4,7 @@
   "description": "store learning project",
   "main": "app.js",
   "scripts": {
-    "start": "nodemon --ext js,ejs,html,json --watch views app.js"
+    "start": "nodemon --ext js,ejs,html,json app.js"
   },
   "keywords": [
     "express",
