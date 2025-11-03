@@ -1,6 +1,6 @@
-// app.js (CommonJS / Node.js 22 対応・学習用)
+// app.js (CommonJS / Node.js 22 対応)
 const express = require("express");
-const mysql = require("mysql2"); // callback ベース
+const mysql = require("mysql2"); 
 
 const app = express();
 
@@ -68,7 +68,7 @@ app.get("/:id", (req, res) => {
 });
 
 /*
- * 注文（トランザクション：callbackベース）
+ * 注文
  */
 app.post("/order", (req, res) => {
   const product_id = req.body.product_id;
