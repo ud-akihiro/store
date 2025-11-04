@@ -1,7 +1,25 @@
+// DB接続の確認 将来的には外だし
+const mysql = require("mysql2"); 
+// MySQL接続 本来はuser,passwordなどはコードに記載しない
+const connection = mysql.createConnection({
+  host: 'mysql',
+  user: 'root', // ユーザがrootだとなんでもできるのでよくない
+  password: 'mysqlpass', // パスワード記載は特にやばい
+  database: 'store'
+});
+// 接続確認(起動時にメッセージ出す)
+connection.connect((error) => {
+  if (error) console.error("DB(MySQL)接続 *** エラー ***:", error);
+  else console.log("DB(MySQL) 接続確認 === 成功 ===");
+});
+
+
+
+
 // app.js (CommonJS / Node.js 22 対応)
 const express = require("express");
-const mysql = require("mysql2"); 
 
+// appを定義
 const app = express();
 
 // body parser
@@ -11,19 +29,16 @@ app.use(express.urlencoded({ extended: false }));
 // cssやjsファイルは、publicの中身を返す 
 app.use(express.static("public"));
 
-// MySQL接続 本来は別ファイルにする(コードに書かない)
-const connection = mysql.createConnection({
-  host: 'mysql',
-  user: 'root', // ユーザがrootだとなんでもできるのでよくない
-  password: 'mysqlpass', // パスワード記載は特にやばい
-  database: 'store'
+
+
+// VSCodeローカルテスト時(/proxy/3000/が付与)対応のため追記
+require('dotenv').config();
+const BASE_PATH = process.env.BASE_PATH || '';
+app.use((req, res, next)=>{
+  res.locals.basePath = BASE_PATH;
+  next();
 });
 
-// 接続確認
-connection.connect((error) => {
-  if (error) console.error("DB(MySQL)接続エラー:", error);
-  else console.log("DB(MySQL) 接続確認 成功");
-});
 
 /*
  * トップ：商品一覧
@@ -46,6 +61,12 @@ app.get("/", (req, res) => {
  */
 app.get("/thanks", (req, res) => {
   res.render("thanks.ejs");
+});
+/*
+ * 管理画面 /:id より先に置かないと、:idに吸い込まれる
+ */
+app.get("/admin", (req, res)=>{
+  res.redirect("/admin/products");
 });
 
 /*
@@ -166,6 +187,25 @@ app.get("/admin/products", (req, res) => {
 
 app.get("/admin/products/new", (req, res) => {
   res.render("admin/products/new.ejs", { errorMessage: "" });
+});
+
+app.get("/admin/products/edit", (req, res)=>{
+  res.render("admin/products/edit.ejs", { errorMessage: ""});
+});
+
+app.get("/admin/orders", (req, res)=>{
+  res.render("admin/orders/index.ejs", { errorMessage: "仮エラー"});
+});
+
+app.get("/admin/orders/show", (req, res)=>{
+  res.render("admin/orders/show.ejs", 
+    { order: {
+        id:"999",
+        quantity: "1",
+        price: "1500",
+        name:"製品名です",
+        image_url: "https://placehold.jp/79b74a/ffffff/400x400.png?text=*image*%0AUntitled"
+      }});
 });
 
 /*
