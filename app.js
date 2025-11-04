@@ -101,7 +101,7 @@ app.post("/order", (req, res) => {
 
       // 注文データ作成
       connection.query(
-        "INSERT INTO orders (product_id, quantity, order_date) VALUES (?, ?, NOW())", 
+        "INSERT INTO orders (product_id, quantity) VALUES (?, ?)", 
         [product_id, quantity], 
         (error) => {
           if (error) { 
