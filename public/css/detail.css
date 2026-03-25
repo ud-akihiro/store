@@ -41,12 +41,12 @@ a {
 }
 
 .purchase-button {
-    background-color: #ffa41c;
+    background-color: #2b1cff;
     color: #fff;
     border: none;
     border-radius: 5px;
     padding: 20px 40px;
-    font-size: 16px;
+    font-size: 20px;
     cursor: pointer;
     margin-bottom: 20px;
 }
